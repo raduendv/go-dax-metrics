@@ -1,0 +1,7 @@
+.aws-sam/
+.idea/
+build/
+vendor/
+terraform/.terraform/
+
+.DS_Store
