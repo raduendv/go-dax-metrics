@@ -48,6 +48,10 @@ func (dl *DataLoader) getItem(ctx context.Context, dax *dax.Dax, duration time.D
 
 		dl.metricsService.incrementStatusCounter("GetItem", ternary(err != nil, 400, 200))
 
+		if err != nil {
+			log.Printf("[ERROR] GetItem: %v", err)
+		}
+
 		return err
 	})
 
@@ -84,6 +88,10 @@ func (dl *DataLoader) putItem(ctx context.Context, dax *dax.Dax, duration time.D
 
 		dl.metricsService.incrementStatusCounter("PutItem", ternary(err != nil, 400, 200))
 
+		if err != nil {
+			log.Printf("[ERROR] PutItem: %v", err)
+		}
+
 		return err
 	})
 
@@ -117,9 +125,9 @@ func (dl *DataLoader) updateItem(ctx context.Context, dax *dax.Dax, duration tim
 	delete(item, FieldPK)
 	delete(item, FieldSK)
 
-	dl.metricsService.incrementThroughput("PutItem")
+	dl.metricsService.incrementThroughput("UpdateItem")
 
-	dl.metricsService.recordLatency("PutItem", func() error {
+	dl.metricsService.recordLatency("UpdateItem", func() error {
 		_, err := dax.UpdateItem(ctx, &dynamodb.UpdateItemInput{
 			TableName:        aws.String(Flags.AWS.DynamoDB.TableName),
 			Key:              key,
@@ -135,7 +143,11 @@ func (dl *DataLoader) updateItem(ctx context.Context, dax *dax.Dax, duration tim
 			ReturnValues: types.ReturnValueAllNew,
 		})
 
-		dl.metricsService.incrementStatusCounter("PutItem", ternary(err != nil, 400, 200))
+		dl.metricsService.incrementStatusCounter("UpdateItem", ternary(err != nil, 400, 200))
+
+		if err != nil {
+			log.Printf("[ERROR] UpdateItem: %v", err)
+		}
 
 		return err
 	})
@@ -183,6 +195,10 @@ func (dl *DataLoader) batchWriteItem(ctx context.Context, dax *dax.Dax, duration
 
 		dl.metricsService.incrementStatusCounter("BatchWriteItem", ternary(err != nil, 400, 200))
 
+		if err != nil {
+			log.Printf("[ERROR] BatchWriteItem: %v", err)
+		}
+
 		return err
 	})
 
@@ -226,8 +242,7 @@ func (dl *DataLoader) query(ctx context.Context, dax *dax.Dax, duration time.Dur
 		dl.metricsService.incrementStatusCounter("Query", ternary(err != nil, 400, 200))
 
 		if err != nil {
-			log.Printf("QueryError: %v - %d", err, pk)
-			panic("asd")
+			log.Printf("[ERROR] Query: %v", err)
 		}
 
 		return err
@@ -284,6 +299,10 @@ func (dl *DataLoader) batchGetItem(ctx context.Context, dax *dax.Dax, duration t
 		_, err := dax.BatchGetItem(ctx, batch)
 
 		dl.metricsService.incrementStatusCounter("BatchGetItem", ternary(err != nil, 400, 200))
+
+		if err != nil {
+			log.Printf("[ERROR] BatchGetItem: %v", err)
+		}
 
 		return err
 	})

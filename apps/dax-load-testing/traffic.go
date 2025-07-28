@@ -40,6 +40,7 @@ func (dl *DataLoader) trafficRampUp(cfg aws.Config, aggressive bool) {
 
 	for atomic.LoadInt64(&dl.activeGoroutines) > 0 {
 		time.Sleep(time.Second)
+		log.Printf("Active goroutines: %d", atomic.LoadInt64(&dl.activeGoroutines))
 	}
 
 	log.Print("closing all clients")
