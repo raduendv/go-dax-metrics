@@ -226,7 +226,8 @@ func (dl *DataLoader) query(ctx context.Context, dax *dax.Dax, duration time.Dur
 		dl.metricsService.incrementStatusCounter("Query", ternary(err != nil, 400, 200))
 
 		if err != nil {
-			log.Printf("QueryError: %v", err)
+			log.Printf("QueryError: %v - %d", err, pk)
+			panic("asd")
 		}
 
 		return err

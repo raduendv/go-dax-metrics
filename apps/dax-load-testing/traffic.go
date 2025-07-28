@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"log"
-	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/aws/aws-dax-go-v2/dax"
@@ -21,7 +21,6 @@ func (dl *DataLoader) trafficRampUp(cfg aws.Config, aggressive bool) {
 	}()
 
 	clients := []*dax.Dax{}
-	wg := sync.WaitGroup{}
 	for range rangeClosed(1, Flags.App.NumberOfClients) {
 		client, err := getDaxClient(&cfg, aggressive)
 		if err != nil {
@@ -30,20 +29,24 @@ func (dl *DataLoader) trafficRampUp(cfg aws.Config, aggressive bool) {
 		clients = append(clients, client)
 
 		for range Flags.App.NumberOfThreadsPerClient {
-			wg.Add(1)
+			atomic.AddInt64(&dl.activeGoroutines, 1)
+
 			go func() {
 				dl.submitTrafficTask(ctx, client, aggressive)
-				defer wg.Done()
+				atomic.AddInt64(&dl.activeGoroutines, -1)
 			}()
 		}
 	}
-	wg.Wait()
 
-	defer func() {
-		for _, client := range clients {
-			_ = client.Close()
-		}
-	}()
+	for atomic.LoadInt64(&dl.activeGoroutines) > 0 {
+		time.Sleep(time.Second)
+	}
+
+	log.Print("closing all clients")
+	for _, client := range clients {
+		_ = client.Close()
+	}
+	log.Print("closed all clients")
 }
 
 func (dl *DataLoader) submitTrafficTask(ctx context.Context, client *dax.Dax, aggressive bool) {

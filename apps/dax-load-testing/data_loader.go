@@ -39,6 +39,8 @@ type DataLoader struct {
 	randomQueryHit        *Random[int]
 
 	metricsService Metrics
+
+	activeGoroutines int64
 }
 
 func (dl *DataLoader) loadSampleData(startPartitionKey int, endPartitionKey int, nrOfSortingKey int, itemSizeKB int, throughDax bool) {
