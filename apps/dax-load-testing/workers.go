@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"fmt"
+	"log"
+	"time"
 
 	"github.com/aws/aws-dax-go-v2/dax"
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -10,9 +12,17 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 )
 
-type workerFn func(dl *DataLoader, ctx context.Context, dax *dax.Dax) error
+type workerFn func(dl *DataLoader, ctx context.Context, dax *dax.Dax, duration time.Duration) error
 
-func (dl *DataLoader) getItem(ctx context.Context, dax *dax.Dax) error {
+func (dl *DataLoader) getItem(ctx context.Context, dax *dax.Dax, duration time.Duration) error {
+	var cancel context.CancelFunc
+	ctx, cancel = context.WithTimeout(ctx, duration)
+	defer cancel()
+	go func() {
+		<-time.After(duration)
+		cancel()
+	}()
+
 	var pk int
 	if Flags.App.WithCacheMiss {
 		pk = dl.randomGetItemMiss.Next()
@@ -44,7 +54,15 @@ func (dl *DataLoader) getItem(ctx context.Context, dax *dax.Dax) error {
 	return nil
 }
 
-func (dl *DataLoader) putItem(ctx context.Context, dax *dax.Dax) error {
+func (dl *DataLoader) putItem(ctx context.Context, dax *dax.Dax, duration time.Duration) error {
+	var cancel context.CancelFunc
+	ctx, cancel = context.WithTimeout(ctx, duration)
+	defer cancel()
+	go func() {
+		<-time.After(duration)
+		cancel()
+	}()
+
 	pk := int(dl.firstPkPutItemKey.Add(1) - 1)
 	sk := dl.keyCounterPutItem.NextSK(pk)
 
@@ -72,7 +90,15 @@ func (dl *DataLoader) putItem(ctx context.Context, dax *dax.Dax) error {
 	return nil
 }
 
-func (dl *DataLoader) updateItem(ctx context.Context, dax *dax.Dax) error {
+func (dl *DataLoader) updateItem(ctx context.Context, dax *dax.Dax, duration time.Duration) error {
+	var cancel context.CancelFunc
+	ctx, cancel = context.WithTimeout(ctx, duration)
+	defer cancel()
+	go func() {
+		<-time.After(duration)
+		cancel()
+	}()
+
 	//String pk = String.valueOf(firstPkPutItemKey.get()),sk = String.valueOf(1);
 	pk := int(dl.firstPkPutItemKey.Add(1) - 1)
 	sk := dl.keyCounterPutItem.NextSK(pk)
@@ -117,7 +143,15 @@ func (dl *DataLoader) updateItem(ctx context.Context, dax *dax.Dax) error {
 	return nil
 }
 
-func (dl *DataLoader) batchWriteItem(ctx context.Context, dax *dax.Dax) error {
+func (dl *DataLoader) batchWriteItem(ctx context.Context, dax *dax.Dax, duration time.Duration) error {
+	var cancel context.CancelFunc
+	ctx, cancel = context.WithTimeout(ctx, duration)
+	defer cancel()
+	go func() {
+		<-time.After(duration)
+		cancel()
+	}()
+
 	dl.metricsService.incrementThroughput("BatchWriteItem")
 
 	pk := int(dl.firstPkBatchWriteItemKey.Add(1) - 1)
@@ -155,7 +189,15 @@ func (dl *DataLoader) batchWriteItem(ctx context.Context, dax *dax.Dax) error {
 	return nil
 }
 
-func (dl *DataLoader) query(ctx context.Context, dax *dax.Dax) error {
+func (dl *DataLoader) query(ctx context.Context, dax *dax.Dax, duration time.Duration) error {
+	var cancel context.CancelFunc
+	ctx, cancel = context.WithTimeout(ctx, duration)
+	defer cancel()
+	go func() {
+		<-time.After(duration)
+		cancel()
+	}()
+
 	var pk int
 	if Flags.App.WithCacheMiss {
 		pk = dl.randomQueryMiss.Next()
@@ -183,13 +225,25 @@ func (dl *DataLoader) query(ctx context.Context, dax *dax.Dax) error {
 
 		dl.metricsService.incrementStatusCounter("Query", ternary(err != nil, 400, 200))
 
+		if err != nil {
+			log.Printf("QueryError: %v", err)
+		}
+
 		return err
 	})
 
 	return nil
 }
 
-func (dl *DataLoader) batchGetItem(ctx context.Context, dax *dax.Dax) error {
+func (dl *DataLoader) batchGetItem(ctx context.Context, dax *dax.Dax, duration time.Duration) error {
+	var cancel context.CancelFunc
+	ctx, cancel = context.WithTimeout(ctx, duration)
+	defer cancel()
+	go func() {
+		<-time.After(duration)
+		cancel()
+	}()
+
 	keys := []map[string]types.AttributeValue{}
 
 	for range rangeClosed(1, 25) {

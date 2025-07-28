@@ -16,6 +16,7 @@ func (dl *DataLoader) trafficRampUp(cfg aws.Config, aggressive bool) {
 
 	go func() {
 		<-time.After(time.Minute * time.Duration(Flags.App.TestDurationMinutes))
+		log.Print("Cancelling due to timeout")
 		cancel()
 	}()
 
@@ -96,14 +97,8 @@ func (dl *DataLoader) executeTrafficCycle(ctx context.Context, client *dax.Dax, 
 		return nil
 	}
 
-	ctx, cancel := context.WithTimeout(
-		ctx,
-		time.Millisecond*ternary[time.Duration](aggressive, 150, 6000),
-	)
-	defer cancel()
-
 	go func() {
-		_ = worker(dl, ctx, client)
+		_ = worker(dl, ctx, client, time.Millisecond*ternary[time.Duration](aggressive, 150, 60_000))
 	}()
 	time.Sleep(time.Millisecond * time.Duration(sleepInterval))
 
