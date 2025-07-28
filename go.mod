@@ -13,6 +13,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/dax v1.24.2
 	github.com/aws/aws-sdk-go-v2/service/dynamodb v1.43.1
 	github.com/aws/smithy-go v1.22.3
+	golang.org/x/net v0.41.0
 )
 
 require (
@@ -30,4 +31,5 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/sts v1.33.19 // indirect
 	github.com/gofrs/uuid v4.4.0+incompatible // indirect
 	golang.org/x/exp v0.0.0-20240506185415-9bf2ced13842 // indirect
+	golang.org/x/text v0.26.0 // indirect
 )
