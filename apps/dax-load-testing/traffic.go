@@ -101,10 +101,5 @@ func (dl *DataLoader) executeTrafficCycle(ctx context.Context, client *dax.Dax, 
 		return nil
 	}
 
-	go func() {
-		_ = worker(dl, ctx, client, time.Millisecond*ternary[time.Duration](aggressive, 150, 60_000))
-	}()
-	time.Sleep(time.Millisecond * time.Duration(sleepInterval))
-
-	return nil
+	return worker(dl, ctx, client, time.Millisecond*ternary[time.Duration](aggressive, 150, 60_000))
 }
