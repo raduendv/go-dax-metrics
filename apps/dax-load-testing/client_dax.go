@@ -30,12 +30,12 @@ func getDaxClient(cfg *aws.Config, aggressive bool) (*dax.Dax, error) {
 		Timeout:   time.Millisecond * time.Duration(Flags.AWS.DAX.ConnectionTtlMillis),
 		KeepAlive: time.Minute,
 	}).DialContext
-	daxCfg.LogLevel = 2 // utils.LogDebugWithRequestRetries
+	daxCfg.LogLevel = 0 // utils.LogDebugWithRequestRetries
 
 	// healthcheck yo!
 	//daxCfg.ClientHealthCheckInterval = time.Second * 5
 	//daxCfg.ClusterUpdateInterval = time.Second * 5
-	//daxCfg.RouteManagerEnabled = true
+	daxCfg.RouteManagerEnabled = true
 
 	client, err := dax.New(daxCfg)
 	if err != nil {

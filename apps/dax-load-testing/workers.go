@@ -234,7 +234,7 @@ func (dl *DataLoader) query(ctx context.Context, dax *dax.Dax, duration time.Dur
 					Value: "1",
 				},
 				":skval2": &types.AttributeValueMemberN{
-					Value: "200",
+					Value: "25",
 				},
 			},
 		})
@@ -262,12 +262,24 @@ func (dl *DataLoader) batchGetItem(ctx context.Context, dax *dax.Dax, duration t
 
 	keys := []map[string]types.AttributeValue{}
 
+	pks := map[int]bool{}
+
 	for range rangeClosed(1, 25) {
 		var pk int
-		if Flags.App.WithCacheMiss {
-			pk = dl.randomBatchGetItemMiss.Next()
-		} else {
-			pk = dl.randomBatchGetItemHit.Next()
+
+		for c := 0; c < 100; c++ {
+			if Flags.App.WithCacheMiss {
+				pk = dl.randomBatchGetItemMiss.Next()
+			} else {
+				pk = dl.randomBatchGetItemHit.Next()
+			}
+
+			if _, found := pks[pk]; found {
+				continue
+			}
+
+			pks[pk] = true
+			break
 		}
 
 		sk := dl.keyCounter.NextSK(pk)
@@ -288,8 +300,8 @@ func (dl *DataLoader) batchGetItem(ctx context.Context, dax *dax.Dax, duration t
 	batch := &dynamodb.BatchGetItemInput{
 		RequestItems: map[string]types.KeysAndAttributes{
 			Flags.AWS.DynamoDB.TableName: types.KeysAndAttributes{
-				Keys:            keys,
-				AttributesToGet: []string{"a1", "a2", "a3", "a4", "a5", "a6"},
+				Keys:                 keys,
+				ProjectionExpression: aws.String("a1, a2, a3, a4, a5, a6"),
 			},
 		},
 	}

@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"log"
-	"sync/atomic"
+	"sync"
 	"time"
 
 	"github.com/aws/aws-dax-go-v2/dax"
@@ -13,6 +13,8 @@ import (
 func (dl *DataLoader) trafficRampUp(cfg aws.Config, aggressive bool) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+
+	wg := sync.WaitGroup{}
 
 	go func() {
 		<-time.After(time.Minute * time.Duration(Flags.App.TestDurationMinutes))
@@ -28,20 +30,18 @@ func (dl *DataLoader) trafficRampUp(cfg aws.Config, aggressive bool) {
 		}
 		clients = append(clients, client)
 
-		for range Flags.App.NumberOfThreadsPerClient {
-			atomic.AddInt64(&dl.activeGoroutines, 1)
+		time.Sleep(time.Second)
 
+		for range Flags.App.NumberOfThreadsPerClient {
+			wg.Add(1)
 			go func() {
 				dl.submitTrafficTask(ctx, client, aggressive)
-				atomic.AddInt64(&dl.activeGoroutines, -1)
+				wg.Done()
 			}()
 		}
 	}
 
-	for atomic.LoadInt64(&dl.activeGoroutines) > 0 {
-		time.Sleep(time.Second)
-		log.Printf("Active goroutines: %d", atomic.LoadInt64(&dl.activeGoroutines))
-	}
+	wg.Wait()
 
 	log.Print("closing all clients")
 	for _, client := range clients {
@@ -101,5 +101,10 @@ func (dl *DataLoader) executeTrafficCycle(ctx context.Context, client *dax.Dax, 
 		return nil
 	}
 
-	return worker(dl, ctx, client, time.Millisecond*ternary[time.Duration](aggressive, 150, 60_000))
+	//return worker(dl, ctx, client, time.Millisecond*ternary[time.Duration](aggressive, 150, 60_000))
+	go func() {
+		_ = worker(dl, ctx, client, time.Millisecond*ternary[time.Duration](aggressive, 150, 60_000))
+	}()
+	time.Sleep(time.Millisecond * time.Duration(sleepInterval))
+	return nil
 }
