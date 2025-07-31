@@ -16,6 +16,7 @@ func getDaxClient(cfg *aws.Config, aggressive bool) (*dax.Dax, error) {
 	daxCfg := dax.NewConfig(*cfg, Flags.AWS.DAX.Endpoint)
 	// populate dax config
 	daxCfg.SkipHostnameVerification = true
+	daxCfg.RequestTimeout = time.Second
 	daxCfg.MaxPendingConnectionsPerHost = int(Flags.AWS.DAX.MaxPendingConnectionAcquires)
 	daxCfg.ReadRetries = ternary(aggressive, int(Flags.AWS.DAX.ReadRetriesAggressive), int(Flags.AWS.DAX.ReadRetries))
 	daxCfg.WriteRetries = ternary(aggressive, int(Flags.AWS.DAX.WriteRetriesAggressive), int(Flags.AWS.DAX.WriteRetries))
@@ -33,8 +34,8 @@ func getDaxClient(cfg *aws.Config, aggressive bool) (*dax.Dax, error) {
 	daxCfg.LogLevel = 0 // utils.LogDebugWithRequestRetries
 
 	// healthcheck yo!
-	//daxCfg.ClientHealthCheckInterval = time.Second * 5
-	//daxCfg.ClusterUpdateInterval = time.Second * 5
+	daxCfg.ClientHealthCheckInterval = time.Second * 5
+	daxCfg.ClusterUpdateInterval = time.Second * 5
 	daxCfg.RouteManagerEnabled = true
 
 	client, err := dax.New(daxCfg)

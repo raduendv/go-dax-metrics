@@ -29,17 +29,38 @@ func (dl *DataLoader) trafficRampUp(cfg aws.Config, aggressive bool) {
 			panic(err)
 		}
 		clients = append(clients, client)
+	}
 
-		time.Sleep(time.Second)
+	// sleep after all clients are started
+	time.Sleep(time.Second)
 
-		for range Flags.App.NumberOfThreadsPerClient {
+	startedGoroutines := 0
+	expectedGoroutines := Flags.App.NumberOfThreadsPerClient * Flags.App.NumberOfClients
+	for range Flags.App.NumberOfThreadsPerClient {
+		for c := range clients {
 			wg.Add(1)
 			go func() {
-				dl.submitTrafficTask(ctx, client, aggressive)
+				dl.submitTrafficTask(ctx, clients[c], aggressive)
 				wg.Done()
 			}()
+			startedGoroutines += 1
+
+			log.Printf(
+				"Started %d of %d goroutines, will now sleep for %d milliseconds before starting the next one.",
+				startedGoroutines,
+				expectedGoroutines,
+				time.Duration(Flags.App.ThreadSpawnIntervalMS),
+			)
+
+			time.Sleep(time.Millisecond * time.Duration(Flags.App.ThreadSpawnIntervalMS))
 		}
 	}
+
+	log.Printf(
+		"Started %d of %d goroutines.",
+		startedGoroutines,
+		expectedGoroutines,
+	)
 
 	wg.Wait()
 
@@ -63,14 +84,12 @@ func (dl *DataLoader) submitTrafficTask(ctx context.Context, client *dax.Dax, ag
 			//
 		}
 
-		err := dl.executeTrafficCycle(ctx, client, sleepInterval, r.Next(), aggressive)
-
 		if rpsPerThread < Flags.App.FinalRPSPerThread {
 			rpsPerThread += Flags.App.RPSRampingFactor
 			sleepInterval = int(1_000.0 / rpsPerThread)
 		}
 
-		if err != nil {
+		if err := dl.executeTrafficCycle(ctx, client, sleepInterval, r.Next(), aggressive); err != nil {
 			log.Printf("Error in %s cycle: %v", ternary(Flags.App.WriteTest, "writeTest traffic", "traffic"), err)
 			time.Sleep(time.Second)
 		}
@@ -80,17 +99,17 @@ func (dl *DataLoader) submitTrafficTask(ctx context.Context, client *dax.Dax, ag
 func (dl *DataLoader) executeTrafficCycle(ctx context.Context, client *dax.Dax, sleepInterval, rnd int, aggressive bool) error {
 	var worker workerFn
 	if Flags.App.WriteTest {
-		if rnd < 75 {
+		if rnd < 90 {
 			worker = (*DataLoader).putItem
-		} else if rnd < 90 {
+		} else if rnd < 95 {
 			worker = (*DataLoader).updateItem
 		} else {
 			worker = (*DataLoader).batchWriteItem
 		}
 	} else {
-		if rnd < 75 {
+		if rnd < 90 {
 			worker = (*DataLoader).getItem
-		} else if rnd < 90 {
+		} else if rnd < 95 {
 			worker = (*DataLoader).query
 		} else {
 			worker = (*DataLoader).batchGetItem
@@ -101,10 +120,5 @@ func (dl *DataLoader) executeTrafficCycle(ctx context.Context, client *dax.Dax, 
 		return nil
 	}
 
-	//return worker(dl, ctx, client, time.Millisecond*ternary[time.Duration](aggressive, 150, 60_000))
-	go func() {
-		_ = worker(dl, ctx, client, time.Millisecond*ternary[time.Duration](aggressive, 150, 60_000))
-	}()
-	time.Sleep(time.Millisecond * time.Duration(sleepInterval))
-	return nil
+	return worker(dl, ctx, client, time.Millisecond*ternary[time.Duration](aggressive, 150, 60_000))
 }

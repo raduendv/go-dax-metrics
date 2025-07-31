@@ -46,6 +46,7 @@ func init() {
 	flag.Float64Var(&Flags.App.FinalRPSPerThread, "app.final_rps_per_thread", 10, "")
 	flag.Float64Var(&Flags.App.RPSRampingFactor, "app.rps_ramping_factor", 0.001, "")
 	flag.UintVar(&Flags.App.RPSRampingIntervalMS, "app.rps_ramping_interval_ms", 50, "")
+	flag.UintVar(&Flags.App.ThreadSpawnIntervalMS, "app.thread_spawn_interval_ms", 1000, "")
 	flag.StringVar(&Flags.App.DaxClusterName, "app.dax-cluster-name", "radu-cluster", "")
 	//
 	flag.BoolVar(&Flags.App.DaxClusterRebootNodes.Enabled, "app.daxClusterRebootNodes.enabled", false, "")
@@ -84,6 +85,7 @@ type flags struct {
 		FinalRPSPerThread        float64 `yaml:"final_rps_per_thread"`
 		RPSRampingFactor         float64 `yaml:"rps_ramping_factor"`
 		RPSRampingIntervalMS     uint    `yaml:"rps_ramping_interval_ms"`
+		ThreadSpawnIntervalMS    uint    `yaml:"thread_spawn_interval_ms"`
 
 		DaxClusterName        string `yaml:"dax-cluster-name"`
 		DaxClusterRebootNodes struct {
