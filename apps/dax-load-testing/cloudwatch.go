@@ -43,7 +43,7 @@ func (c *CloudWatchSender) Start() {
 	ctx, cancel := context.WithCancel(context.Background())
 	c.cancel = cancel
 	// start an initial set of workers
-	for range 32 {
+	for range 256 {
 		nCtx, nCancel := context.WithCancel(context.Background())
 		c.cancelFuncs = append(c.cancelFuncs, nCancel)
 

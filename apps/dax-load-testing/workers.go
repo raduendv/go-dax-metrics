@@ -43,7 +43,8 @@ func (dl *DataLoader) getItem(ctx context.Context, dax *dax.Dax, duration time.D
 					Value: fmt.Sprintf("%d", sk),
 				},
 			},
-			TableName: aws.String(Flags.AWS.DynamoDB.TableName),
+			ProjectionExpression: aws.String("pk, sk"),
+			TableName:            aws.String(Flags.AWS.DynamoDB.TableName),
 		})
 
 		dl.metricsService.incrementStatusCounter("GetItem", ternary(err != nil, 400, 200))
@@ -226,6 +227,8 @@ func (dl *DataLoader) query(ctx context.Context, dax *dax.Dax, duration time.Dur
 		_, err := dax.Query(ctx, &dynamodb.QueryInput{
 			TableName:              aws.String(Flags.AWS.DynamoDB.TableName),
 			KeyConditionExpression: aws.String("pk = :pkval and sk between :skval1 and :skval2"),
+			ProjectionExpression:   aws.String("pk, sk"),
+			Select:                 types.SelectSpecificAttributes,
 			ExpressionAttributeValues: map[string]types.AttributeValue{
 				":pkval": &types.AttributeValueMemberN{
 					Value: fmt.Sprintf("%d", pk),
@@ -301,7 +304,7 @@ func (dl *DataLoader) batchGetItem(ctx context.Context, dax *dax.Dax, duration t
 		RequestItems: map[string]types.KeysAndAttributes{
 			Flags.AWS.DynamoDB.TableName: types.KeysAndAttributes{
 				Keys:                 keys,
-				ProjectionExpression: aws.String("a1, a2, a3, a4, a5, a6"),
+				ProjectionExpression: aws.String("pk, sk"),
 			},
 		},
 	}
@@ -318,5 +321,6 @@ func (dl *DataLoader) batchGetItem(ctx context.Context, dax *dax.Dax, duration t
 
 		return err
 	})
+
 	return nil
 }

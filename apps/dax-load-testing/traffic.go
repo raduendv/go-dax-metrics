@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"log"
+	"runtime"
 	"sync"
 	"time"
 
@@ -64,6 +65,14 @@ func (dl *DataLoader) trafficRampUp(cfg aws.Config, aggressive bool) {
 
 	wg.Wait()
 
+	for range 10 {
+		for range 10 {
+			runtime.GC()
+		}
+
+		time.Sleep(time.Second)
+	}
+
 	log.Print("closing all clients")
 	for _, client := range clients {
 		_ = client.Close()
@@ -99,17 +108,17 @@ func (dl *DataLoader) submitTrafficTask(ctx context.Context, client *dax.Dax, ag
 func (dl *DataLoader) executeTrafficCycle(ctx context.Context, client *dax.Dax, sleepInterval, rnd int, aggressive bool) error {
 	var worker workerFn
 	if Flags.App.WriteTest {
-		if rnd < 90 {
+		if rnd < 75 {
 			worker = (*DataLoader).putItem
-		} else if rnd < 95 {
+		} else if rnd < 90 {
 			worker = (*DataLoader).updateItem
 		} else {
 			worker = (*DataLoader).batchWriteItem
 		}
 	} else {
-		if rnd < 90 {
+		if rnd < 75 {
 			worker = (*DataLoader).getItem
-		} else if rnd < 95 {
+		} else if rnd < 90 {
 			worker = (*DataLoader).query
 		} else {
 			worker = (*DataLoader).batchGetItem

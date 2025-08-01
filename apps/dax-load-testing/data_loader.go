@@ -3,11 +3,14 @@ package main
 import (
 	"context"
 	"log"
+	rand "math/rand/v2"
 	"sync"
 	"sync/atomic"
 	"time"
 
 	"github.com/aws/aws-dax-go-v2/dax"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	daxsvc "github.com/aws/aws-sdk-go-v2/service/dax"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 )
@@ -15,6 +18,7 @@ import (
 type DataLoader struct {
 	daxClient      *dax.Dax
 	dynamoDBClient *dynamodb.Client
+	adminClient    *daxsvc.Client
 
 	// pks
 	firstPkBatchWriteItemKey atomic.Int64
@@ -128,16 +132,29 @@ func (dl *DataLoader) loadSampleData(startPartitionKey int, endPartitionKey int,
 	wg.Wait()
 }
 
-// random key
-func (dl *DataLoader) getRandomKey(k string, aggressive bool) int {
-	switch k {
-	case "GetItem":
-		return 0
-	case "Query":
-		return 0
-	case "BatchGetItem":
-		return 0
+func (dl *DataLoader) restartRandomNode() (string, error) {
+	res, err := dl.adminClient.DescribeClusters(context.Background(), &daxsvc.DescribeClustersInput{
+		ClusterNames: []string{Flags.App.DaxClusterName},
+	})
+	if err != nil {
+		return "", err
 	}
 
-	return 0
+	nodeIds := []string{}
+	for _, c := range res.Clusters {
+		for _, n := range c.Nodes {
+			if aws.ToString(n.NodeStatus) == "available" {
+				nodeIds = append(nodeIds, aws.ToString(n.NodeId))
+			}
+		}
+	}
+
+	idx := rand.IntN(len(nodeIds))
+
+	_, err = dl.adminClient.RebootNode(context.Background(), &daxsvc.RebootNodeInput{
+		ClusterName: aws.String(Flags.App.DaxClusterName),
+		NodeId:      aws.String(nodeIds[idx]),
+	})
+
+	return nodeIds[idx], err
 }

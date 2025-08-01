@@ -1,9 +1,11 @@
 package main
 
 import (
+	"context"
 	"log"
 	"time"
 
+	daxsvc "github.com/aws/aws-sdk-go-v2/service/dax"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 )
 
@@ -26,9 +28,12 @@ func main() {
 	cwSender.Start()
 	defer cwSender.Stop()
 
+	adminClient := daxsvc.NewFromConfig(*awsCfg)
+
 	c := &DataLoader{
 		daxClient:      defaultDaxClient,
 		dynamoDBClient: defaultDynamoDBClient,
+		adminClient:    adminClient,
 
 		randomGetItemMiss:      NewRandom[int](2_000, 60_000),
 		randomBatchGetItemMiss: NewRandom[int](1_001, 100_000),
@@ -61,7 +66,7 @@ func main() {
 	}
 
 	if Flags.App.StartTraffic {
-		if Flags.App.WriteTest {
+		if !Flags.App.WriteTest {
 			log.Printf("Starting traffic generation with ramp-up adjustment - Cache hit %s default config", ternary(Flags.App.WithCacheMiss, "50%", "100%"))
 			c.trafficRampUp(*awsCfg, false)
 			//		dynamoDbLoadData.setClientAggressive(false);
@@ -77,15 +82,54 @@ func main() {
 			log.Printf("Finished traffic generation with ramp-up adjustment - Cache hit %s aggressive config", ternary(Flags.App.WithCacheMiss, "50%", "100%"))
 			//		Thread.sleep(5*60*1000);
 			time.Sleep(time.Minute * 5)
+
 			log.Printf("Starting traffic generation with ramp-up adjustment - Cache hit %s default config - node restarting every 10 minute", ternary(Flags.App.WithCacheMiss, "50%", "100%"))
+
+			var rcancel context.CancelFunc
+			log.Printf("[RESTART][ENABLED] Restarting node enabled: %t", Flags.App.DaxClusterRebootNodes.Enabled)
+			if Flags.App.DaxClusterRebootNodes.Enabled {
+				var rctx context.Context
+				rctx, rcancel = context.WithCancel(context.Background())
+				defer rcancel()
+
+				go func(ctx context.Context) {
+					ticker := time.NewTicker(time.Millisecond * time.Duration(Flags.App.DaxClusterRebootNodes.FixedDelayMS))
+					<-time.After(time.Millisecond * time.Duration(Flags.App.DaxClusterRebootNodes.InitialDelayMS))
+
+					if nodeId, err := c.restartRandomNode(); err != nil || nodeId == "" {
+						log.Printf("[RESTART][ERROR] Failed to restart node: %v", err)
+					} else {
+						log.Printf("[RESTART][SUCCESS] Restared node: %v", nodeId)
+					}
+
+					for {
+						select {
+						case <-ctx.Done():
+							return
+						case <-ticker.C:
+						}
+
+						if nodeId, err := c.restartRandomNode(); err != nil || nodeId == "" {
+							log.Printf("[RESTART][ERROR] Failed to restart node: %v", err)
+						} else {
+							log.Printf("[RESTART][SUCCESS] Restared node: %v", nodeId)
+						}
+					}
+				}(rctx)
+			}
+
 			c.trafficRampUp(*awsCfg, false)
+
+			if rcancel != nil {
+				rcancel()
+			}
 			//		setRestartingClusterNode(true);
 			//		dynamoDbLoadData.setClientAggressive(false);
 			//		dynamoDbLoadData.trafficRampUp();
 			//		setRestartingClusterNode(false);
 			log.Printf("Finished traffic generation with ramp-up adjustment - Cache hit %s default config - node restarting every 10 minute", ternary(Flags.App.WithCacheMiss, "50%", "100%"))
 			//		Thread.sleep(5*60*1000);
-			time.Sleep(time.Minute * 5)
+			//time.Sleep(time.Minute * 5)
 		} else {
 			log.Print("Starting write test with ramp-up adjustment - default config")
 			//		dynamoDbLoadData.setClientAggressive(false);
@@ -107,10 +151,49 @@ func main() {
 			//		dynamoDbLoadData.setClientAggressive(false);
 			//		dynamoDbLoadData.trafficRampUp();
 			//		setRestartingClusterNode(false);
+
+			var rcancel context.CancelFunc
+			log.Printf("[RESTART][ENABLED] Restarting node enabled: %t", Flags.App.DaxClusterRebootNodes.Enabled)
+			if Flags.App.DaxClusterRebootNodes.Enabled {
+				var rctx context.Context
+				rctx, rcancel = context.WithCancel(context.Background())
+				defer rcancel()
+
+				go func(ctx context.Context) {
+					ticker := time.NewTicker(time.Millisecond * time.Duration(Flags.App.DaxClusterRebootNodes.FixedDelayMS))
+					<-time.After(time.Millisecond * time.Duration(Flags.App.DaxClusterRebootNodes.InitialDelayMS))
+
+					if nodeId, err := c.restartRandomNode(); err != nil || nodeId == "" {
+						log.Printf("[RESTART][ERROR] Failed to restart node: %v", err)
+					} else {
+						log.Printf("[RESTART][SUCCESS] Restared node: %v", nodeId)
+					}
+
+					for {
+						select {
+						case <-ctx.Done():
+							return
+						case <-ticker.C:
+						}
+
+						if nodeId, err := c.restartRandomNode(); err != nil || nodeId == "" {
+							log.Printf("[RESTART][ERROR] Failed to restart node: %v", err)
+						} else {
+							log.Printf("[RESTART][SUCCESS] Restared node: %v", nodeId)
+						}
+					}
+				}(rctx)
+			}
+
 			c.trafficRampUp(*awsCfg, false)
+
+			if rcancel != nil {
+				rcancel()
+			}
+
 			log.Print("Finished write test with ramp-up adjustment default config - node restarting every 10 minute")
 			//		Thread.sleep(5*60*1000);
-			time.Sleep(time.Minute * 5)
+			//time.Sleep(time.Minute * 5)
 		}
 	}
 }

@@ -49,7 +49,7 @@ func init() {
 	flag.UintVar(&Flags.App.ThreadSpawnIntervalMS, "app.thread_spawn_interval_ms", 1000, "")
 	flag.StringVar(&Flags.App.DaxClusterName, "app.dax-cluster-name", "radu-cluster", "")
 	//
-	flag.BoolVar(&Flags.App.DaxClusterRebootNodes.Enabled, "app.daxClusterRebootNodes.enabled", false, "")
+	flag.BoolVar(&Flags.App.DaxClusterRebootNodes.Enabled, "app.daxClusterRebootNodes.enabled", true, "")
 	flag.UintVar(&Flags.App.DaxClusterRebootNodes.InitialDelayMS, "app.daxClusterRebootNodes.initial-delay-ms", 1000, "")
 	flag.UintVar(&Flags.App.DaxClusterRebootNodes.FixedDelayMS, "app.daxClusterRebootNodes.fixed-delay-ms", 600000, "")
 	flag.StringVar(&Flags.App.CloudWatch.Namespace, "app.cloudwatch.namespace", "go-dax-load-test", "")
